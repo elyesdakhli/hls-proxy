@@ -26,8 +26,12 @@ const MIME_TYPES = {
     ts: 'video/MP2T'
 };
 
+// Health check endpoint
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 // CORS middleware
 app.use((req, res, next) => {
+    console.log('CORS middleware request');
     res.setHeader('Access-Control-Allow-Origin', CORS_CONFIG.allowOrigins);
     res.setHeader('Access-Control-Allow-Methods', CORS_CONFIG.allowMethods);
     res.setHeader('Access-Control-Allow-Headers', CORS_CONFIG.allowHeaders);
@@ -49,6 +53,7 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
     try {
         const targetUrl = req.url.slice(1);
+        console.log('URL validation middleware for targetUrl:', targetUrl);
         const isValid = targetUrl.startsWith('http://') || targetUrl.startsWith('https://');
 
         if (!isValid) {
@@ -70,7 +75,10 @@ app.use(
         target: '',
         changeOrigin: true,
         pathRewrite: { '^.*': '' },
+        logLevel: 'debug', // Enable logging
+        logProvider: (provider) => console,
         onProxyReq: (proxyReq, req) => {
+            console.log('[onProxyReq] Requesting:', req.targetUrl);
             // Preserve range headers for video streaming
             if (req.headers.range) {
                 proxyReq.setHeader('Range', req.headers.range);
@@ -81,6 +89,7 @@ app.use(
             }
         },
         onProxyRes: (proxyRes, req, res) => {
+            console.log('[onProxyRes] Response:', req.targetUrl);
             // Forward Content-Range for byte-range requests
             if (proxyRes.headers['content-range']) {
                 res.setHeader('Content-Range', proxyRes.headers['content-range']);
@@ -102,7 +111,6 @@ app.use(
     })
 );
 
-// Health check endpoint
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 
 app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
